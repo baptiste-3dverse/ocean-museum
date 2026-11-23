@@ -1,7 +1,39 @@
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  width: 100dvw;
-  height: 100dvh;
+:root {
+    --bg: #02060b;
+    --panel: rgba(4, 13, 22, 0.74);
+    --panel-strong: rgba(4, 13, 22, 0.9);
+    --line: rgba(34, 211, 238, 0.24);
+    --line-strong: rgba(34, 211, 238, 0.55);
+    --cyan: #22d3ee;
+    --text: #cfe7f1;
+    --muted: #6a8999;
+    --fire: #ff2b2b;
+    --ff: #ff8a1f;
+    --ext: #21ff8a;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --display: "Rajdhani", "Inter", system-ui, sans-serif;
+    --sans: "Inter", system-ui, -apple-system, sans-serif;
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    margin: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    overflow: hidden;
+}
+
+button,
+select {
+    font: inherit;
+    color: inherit;
 }

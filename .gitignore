@@ -22,3 +22,9 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# extraction cache (re-downloaded by scripts/extract-building.mjs)
+scripts/.cache
+
+# Font Awesome Pro token (see .npmrc.example)
+.npmrc

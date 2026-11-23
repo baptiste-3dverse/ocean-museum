@@ -1,68 +1,83 @@
 //------------------------------------------------------------------------------
-import { useContext } from "react";
-import {
-  Livelink,
-  Canvas,
-  Viewport,
-  CameraController,
-  useCameraEntity,
-  LivelinkContext,
-} from "@3dverse/livelink-react";
+// Ocean Museum — real-time fire-response digital twin.
+//
+//   building/     geometry extracted from the scene (rooms, doors, stairs, nav grid)
+//   pathfinding/  waypoint graph, A* / Dijkstra, extinguisher routes
+//   simulation/   people feed interface + simulated feed (+ WebSocket adapter)
+//   state/        store and user actions
+//   twin3d/       entities under "DigitalTwin", labels, camera
+//   ui/           HUD panels
+//------------------------------------------------------------------------------
+import { useCallback, useEffect, useMemo } from "react";
+import { Livelink, Canvas, Viewport, CameraController, useCameraEntity, type DefaultCameraController } from "@3dverse/livelink-react";
 import { LoadingOverlay } from "@3dverse/livelink-react-ui";
 
-//------------------------------------------------------------------------------
-import logo from "./assets/3dverse-wordmark.svg";
+import { MAIN_CAMERA_SETTINGS, PUBLIC_TOKEN, SCENE_ID } from "./config";
+import { createFeed } from "./simulation/createFeed";
+import { startTwin } from "./state/controller";
+import { TwinSceneProvider } from "./twin3d/TwinScene";
+import { useTwinRenderer } from "./twin3d/rendererContext";
+import { TwinOverlay } from "./twin3d/TwinOverlay";
+import { CameraDirector, FirePlacement } from "./twin3d/ViewportTools";
+import { initialView, setCameraController } from "./twin3d/cameraRig";
+import { TopBar } from "./ui/TopBar";
+import { AlertBanner } from "./ui/AlertBanner";
+import { SidePanel } from "./ui/PeoplePanel";
+import { IncidentControls } from "./ui/IncidentControls";
+import { FloorNav } from "./ui/FloorNav";
+import { BodyCamPip } from "./ui/BodyCamPip";
 import "./App.css";
 
-//------------------------------------------------------------------------------
-const scene_id = "c3809f0f-1246-42a2-a195-f214da250ffa";
-const token = "public_UFQSaEJ2N7XO3pqT";
-
-//------------------------------------------------------------------------------
 export function App() {
-  return (
-    <Livelink sceneId={scene_id} token={token} LoadingPanel={LoadingOverlay}>
-      <AppLayout />
-    </Livelink>
-  );
+    const feed = useMemo(() => createFeed(), []);
+    useEffect(() => startTwin(feed), [feed]);
+
+    return (
+        <Livelink sceneId={SCENE_ID} token={PUBLIC_TOKEN} isTransient autoJoinExisting={false} LoadingPanel={LoadingOverlay}>
+            <TwinSceneProvider>
+                <TwinView />
+            </TwinSceneProvider>
+        </Livelink>
+    );
 }
 
-//------------------------------------------------------------------------------
-function AppLayout() {
-  const { cameraEntity } = useCameraEntity();
-  const { isConnecting } = useContext(LivelinkContext);
+function TwinView() {
+    const { cameraEntity } = useCameraEntity({
+        name: "Operator camera",
+        position: [50, 22, 78],
+        settings: MAIN_CAMERA_SETTINGS,
+        perspective_lens: { fovy: 50, nearPlane: 0.1, farPlane: 0 },
+    });
+    // the operator camera also lives under DigitalTwin, with everything else the app creates
+    const renderer = useTwinRenderer();
+    useEffect(() => {
+        if (renderer && cameraEntity) renderer.adopt(cameraEntity);
+    }, [renderer, cameraEntity]);
+    const onController = useCallback((c: DefaultCameraController | undefined) => {
+        setCameraController(c ?? null);
+        if (c) initialView();
+    }, []);
 
-  return (
-    <Canvas className="h-dvh">
-      <Viewport cameraEntity={cameraEntity} className="w-full h-full">
-        {!isConnecting && (
-            <div className='absolute bottom-3 left-1/2 -translate-x-1/2 bg-green-800 text-sm text-white rounded-full py-1 px-3 pointer-events-none animate-[fade-out_.5s_2s_forwards]'>
-                Connected.
-            </div>
-        )}
-        <div className="absolute bottom-0 right-0 p-2 sm:p-4 w-full sm:max-w-2xs sm:min-w-md">
-            <div className="flex flex-col items-center sm:items-start gap-8 sm:gap-4 py-12 sm:py-5 px-6 bg-black/70 text-white rounded-md backdrop-blur-xl shadow-xl">
-                <a href="https://docs.3dverse.com" target="_blank">
-                    <img src={logo} className="h-4" alt="3dverse logo" />
-                </a>
-                <ol className="list-inside list-decimal flex flex-col gap-1 text-md/6 text-center sm:text-left tracking-wide">
-                    <li>Get started by editing <code className="text-sm ml-1 text-white/60">src/App.tsx</code></li>
-                    <li>
-                        <a href="https://docs.3dverse.com/references/livelink.react" target="_blank" className="hover:text-yellow-400">
-                            Read The Livelink React Docs
-                        </a>
-                    </li>
-                </ol>
-                <div className="flex gap-2">
-                    <a href="https://discord.com/invite/Ax53gQS3Pu" target="_blank" className="text-sm text-white/60 hover:text-yellow-400">Discord</a>
-                    <a href="https://3dverse.com" target="_blank" className="text-sm text-white/60 hover:text-yellow-400">3dverse.com</a>
-                </div>
+    return (
+        <div className="app">
+            <Canvas className="app__canvas">
+                <Viewport cameraEntity={cameraEntity} className="app__viewport">
+                    <CameraController ref={onController} />
+                    <TwinOverlay />
+                    <CameraDirector />
+                    <FirePlacement />
+                    <BodyCamPip />
+                </Viewport>
+            </Canvas>
+            <div className="hud">
+                <TopBar />
+                <AlertBanner />
+                <FloorNav />
+                <IncidentControls />
+                <SidePanel />
             </div>
         </div>
-        <CameraController />
-      </Viewport>
-    </Canvas>
-  );
+    );
 }
 
 export default App;
